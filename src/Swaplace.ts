@@ -1,50 +1,21 @@
 import { ponder } from "@/generated";
+import { getSwapData } from "./getSwap";
+import { getEnsData } from "./getEns";
 
 ponder.on("Swaplace:SwapCreated", async ({ event, context }) => {
   const { client } = context;
   const { Swaplace } = context.contracts;
-  const { Database } = context.db;
+  const { SwapDatabase, EnsDatabase } = context.db;
   const { swapId, owner } = event.args;
 
-  const contractResponse = await client.readContract({
-    abi: Swaplace.abi,
-    address: Swaplace.address,
-    functionName: "getSwap",
-    args: [event.args.swapId],
-  });
+  const { expiry, allowed, strinfiedBid, strinfiedAsk } = await getSwapData(
+    client,
+    Swaplace,
+    swapId,
+  );
 
-  let config = contractResponse.config;
-
-  const expiry: bigint =
-    BigInt(config) & ((BigInt(1) << BigInt(96)) - BigInt(1));
-  const allowed: string = (BigInt(config) >> BigInt(96)).toString(16);
-
-  interface Asset {
-    addr: string;
-    amountOrId: string;
-  }
-
-  let biding = contractResponse.biding.map((token) => {
-    let asset: Asset = {
-      addr: token.addr,
-      amountOrId: token.amountOrId.toString(),
-    };
-    return asset;
-  });
-
-  let asking = contractResponse.asking.map((token) => {
-    let asset: Asset = {
-      addr: token.addr,
-      amountOrId: token.amountOrId.toString(),
-    };
-    return asset;
-  });
-
-  let strinfiedBid = JSON.stringify(biding);
-  let strinfiedAsk = JSON.stringify(asking);
-
-  await Database.create({
-    id: `0x${swapId}`,
+  await SwapDatabase.create({
+    id: swapId,
     data: {
       blockTimestamp: event.block.timestamp,
       transactionHash: event.transaction.hash,
@@ -57,64 +28,45 @@ ponder.on("Swaplace:SwapCreated", async ({ event, context }) => {
       ask: strinfiedAsk,
     },
   });
+
+  // const primaryName = await getEnsData(client, owner);
+  // console.log("PRIMARY NAME", primaryName);
+
+  // await EnsDatabase.create({
+  //   id: swapId,
+  //   data: {
+  //     address: owner,
+  //     ensName: primaryName,
+  //     ensAvatar: `https: metadata.ens.domains/mainnet/avatar/${primaryName}`,
+  //   },
+  // });
 });
 
 ponder.on("Swaplace:SwapCanceled", async ({ event, context }) => {
-  const { Database } = context.db;
+  const { SwapDatabase } = context.db;
   const { swapId } = event.args;
 
   try {
-    await Database.update({
-      id: `0x${swapId}`,
+    await SwapDatabase.update({
+      id: swapId,
       data: {
         status: "CANCELED",
       },
     });
   } catch (error) {
-    console.log("Error updating database. Creating new entry instead.");
+    console.log("Error updating SwapDatabase. Creating new entry instead.");
     const { client } = context;
     const { Swaplace } = context.contracts;
     const { swapId, owner } = event.args;
 
-    const contractResponse = await client.readContract({
-      abi: Swaplace.abi,
-      address: Swaplace.address,
-      functionName: "getSwap",
-      args: [swapId],
-    });
+    const { expiry, allowed, strinfiedBid, strinfiedAsk } = await getSwapData(
+      client,
+      Swaplace,
+      swapId,
+    );
 
-    let config = contractResponse.config;
-
-    const expiry: bigint =
-      BigInt(config) & ((BigInt(1) << BigInt(96)) - BigInt(1));
-    const allowed: string = (BigInt(config) >> BigInt(96)).toString(16);
-
-    interface Asset {
-      addr: string;
-      amountOrId: string;
-    }
-
-    let biding = contractResponse.biding.map((token) => {
-      let asset: Asset = {
-        addr: token.addr,
-        amountOrId: token.amountOrId.toString(),
-      };
-      return asset;
-    });
-
-    let asking = contractResponse.asking.map((token) => {
-      let asset: Asset = {
-        addr: token.addr,
-        amountOrId: token.amountOrId.toString(),
-      };
-      return asset;
-    });
-
-    let strinfiedBid = JSON.stringify(biding);
-    let strinfiedAsk = JSON.stringify(asking);
-
-    await Database.create({
-      id: `0x${swapId}`,
+    await SwapDatabase.create({
+      id: swapId,
       data: {
         blockTimestamp: event.block.timestamp,
         transactionHash: event.transaction.hash,
@@ -128,67 +80,36 @@ ponder.on("Swaplace:SwapCanceled", async ({ event, context }) => {
       },
     });
   } finally {
-    console.log("Database updated successfully.");
+    console.log("SwapDatabase updated successfully.");
   }
 });
 
 ponder.on("Swaplace:SwapAccepted", async ({ event, context }) => {
-  const { Database } = context.db;
+  const { SwapDatabase } = context.db;
   const { swapId } = event.args;
 
   try {
-    await Database.update({
-      id: `0x${swapId}`,
+    await SwapDatabase.update({
+      id: swapId,
       data: {
         status: "ACCEPTED",
       },
     });
   } catch (error) {
-    console.log("Error updating database. Creating new entry instead.");
+    console.log("Error updating SwapDatabase. Creating new entry instead.");
     const { client } = context;
     const { Swaplace } = context.contracts;
     const { swapId, owner } = event.args;
+    const { expiry, allowed, strinfiedBid, strinfiedAsk } = await getSwapData(
+      client,
+      Swaplace,
+      swapId,
+    );
 
-    const contractResponse = await client.readContract({
-      abi: Swaplace.abi,
-      address: Swaplace.address,
-      functionName: "getSwap",
-      args: [swapId],
-    });
+    await SwapDatabase.upsert({
+      id: swapId,
 
-    let config = contractResponse.config;
-
-    const expiry: bigint =
-      BigInt(config) & ((BigInt(1) << BigInt(96)) - BigInt(1));
-    const allowed: string = (BigInt(config) >> BigInt(96)).toString(16);
-
-    interface Asset {
-      addr: string;
-      amountOrId: string;
-    }
-
-    let biding = contractResponse.biding.map((token) => {
-      let asset: Asset = {
-        addr: token.addr,
-        amountOrId: token.amountOrId.toString(),
-      };
-      return asset;
-    });
-
-    let asking = contractResponse.asking.map((token) => {
-      let asset: Asset = {
-        addr: token.addr,
-        amountOrId: token.amountOrId.toString(),
-      };
-      return asset;
-    });
-
-    let strinfiedBid = JSON.stringify(biding);
-    let strinfiedAsk = JSON.stringify(asking);
-
-    await Database.create({
-      id: `0x${swapId}`,
-      data: {
+      create: {
         blockTimestamp: event.block.timestamp,
         transactionHash: event.transaction.hash,
         status: "ACCEPTED",
@@ -199,8 +120,12 @@ ponder.on("Swaplace:SwapAccepted", async ({ event, context }) => {
         bid: strinfiedBid,
         ask: strinfiedAsk,
       },
+
+      update: {
+        status: "ACCEPTED",
+      },
     });
   } finally {
-    console.log("Database updated successfully.");
+    console.log("SwapDatabase updated successfully.");
   }
 });
