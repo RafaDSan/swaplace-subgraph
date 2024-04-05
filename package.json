@@ -11,7 +11,7 @@
     "typecheck": "tsc"
   },
   "dependencies": {
-    "@ponder/core": "^0.2.12",
+    "@ponder/core": "^0.3.10",
     "alchemy-sdk": "^3.1.2",
     "viem": "^1.19.3"
   },
