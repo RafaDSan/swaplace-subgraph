@@ -10,6 +10,7 @@
     "isolatedModules": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
 
     // Language and environment
     "moduleResolution": "bundler",
@@ -19,7 +20,9 @@
     "target": "ES2022",
 
     // Skip type checking for node modules
-    "skipLibCheck": true
+    "skipLibCheck": true,
+
+    "outDir": "./dist"
   },
   "include": ["./**/*.ts"],
   "exclude": ["node_modules"]
